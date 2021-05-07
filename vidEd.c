@@ -8,7 +8,7 @@
 // Allocate a buffer to store one frame
 unsigned char frame[H][W][3] = {0};
  
-int main()
+int main(int argc, char* argv[])
 {
     int x, y, count;
      

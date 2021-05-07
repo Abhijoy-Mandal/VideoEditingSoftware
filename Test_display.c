@@ -15,9 +15,9 @@ int main()
 	//ffmpeg -loop 1 -i after_10_mins_nnet_1L.jpg -c:v libx264 -t 10 -pix_fmt yuv420p -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output3.mp4  
     // Open an input pipe from ffmpeg and an output pipe to a second instance of ffmpeg
     FILE *pipein = popen("ffmpeg -i after_10_mins_nnet_1L.jpg -f image2pipe -vcodec rawvideo -pix_fmt rgb24 -", "r");
-	FILE *pipein2 = popen("ffmpeg -i text_resized.jpg -f image2pipe -vcodec rawvideo -pix_fmt rgb24 -", "r");
+	FILE *pipein2 = popen("ffmpeg -i captions.jpg -f image2pipe -vcodec rawvideo -pix_fmt rgb24 -", "r");
     
-	FILE *pipeout = popen("ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt rgb24 -s 1280x720 -r 60 -i - -f mp4 -q:v 5 -an -vcodec mpeg4 combined2.mp4", "w");
+	FILE *pipeout = popen("ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt rgb24 -s 1280x720 -r 60 -i - -f mp4 -q:v 5 -an -vcodec mpeg4 combined4.mp4", "w");
 	
 	int img_h = 1279;
 	int img_w = 1920;
@@ -28,9 +28,10 @@ int main()
 		fprintf(stderr, "Problem!!!!!!!!!!\n"); 
 		exit(1);
 	}
-	
-	unsigned char text_frame[720][1280][3] = {0};
-	count = fread(text_frame, 1, 720*1280*3, pipein2);
+	int caption_w = 942;
+	int caption_h = 178;
+	unsigned char text_frame[178][942][3] = {0};
+	count = fread(text_frame, 1, 178*942*3, pipein2);
 	
     // Process video frames
 	int i = 0;
@@ -49,10 +50,10 @@ int main()
         for (y=0 ; y<video_h ; ++y){
 			for (x=0 ; x<video_w ; ++x){
 				// Invert each colour component in every pixel
-				if(text_frame[y][x][0]<225 || text_frame[y][x][1]<225 || text_frame[y][x][2]<225){
-					temp_frame[y][x][0] = text_frame[y][x][0]; // red
-					temp_frame[y][x][1] = text_frame[y][x][1]; // green
-					temp_frame[y][x][2] = text_frame[y][x][2];
+				if(x > (video_w - caption_w)/2 && x<(video_w + caption_w)/2 && y > (video_h - caption_h - 10) && y < (video_h - 10)&& (text_frame[y - video_h + caption_h + 10][(2*x-video_w+caption_w)/2][0]<205 || text_frame[y - video_h + caption_h + 10][(2*x-video_w+caption_w)/2][1]<205 || text_frame[y - video_h + caption_h + 10][(2*x-video_w+caption_w)/2][2]<205)){
+					temp_frame[y][x][0] = text_frame[y - video_h + caption_h + 10][(2*x-video_w+caption_w)/2][0]; // red
+					temp_frame[y][x][1] = text_frame[y - video_h + caption_h + 10][(2*x-video_w+caption_w)/2][1]; // green
+					temp_frame[y][x][2] = text_frame[y - video_h + caption_h + 10][(2*x-video_w+caption_w)/2][2];
 					continue;
 				}
 				if(i<=255){
@@ -81,7 +82,14 @@ int main()
         fwrite(temp_frame, 1, video_h*video_w*3, pipeout);
 		i++;
     }
-     
+    
+	i = 0;
+	while(i<20){
+		unsigned char temp_frame[720][1280][3] = {0};
+		fseek(pipeout, (255+i)*720*1280*3, SEEK_SET);
+		fwrite(temp_frame, 1, 720*1280*3, pipeout);
+		i++;
+	}
     // Flush and close input and output pipes
     fflush(pipein);
     pclose(pipein);
